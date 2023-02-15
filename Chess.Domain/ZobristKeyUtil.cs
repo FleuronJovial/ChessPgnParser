@@ -1,9 +1,4 @@
 ﻿using Chess.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Chess.Domain
 {
@@ -15,7 +10,7 @@ namespace Chess.Domain
     {
 
         /// <summary>Random value for each piece/position</summary>
-        private static readonly Int64[] s_rndTable;
+        private static readonly long[] s_rndTable;
 
         /// <summary>
         /// Static constructor. Use to create the random value for each case of the board.

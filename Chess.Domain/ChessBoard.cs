@@ -1,5 +1,4 @@
 ﻿using Chess.Domain.Enums;
-using System.Diagnostics;
 
 namespace Chess.Domain
 {
@@ -17,7 +16,7 @@ namespace Chess.Domain
         void ResetBoard();
         BoardStateMask ComputeBoardExtraInfo(bool addRepetitionInfo);
 
-        PieceType this[int pos] { get;set; }
+        PieceType this[int pos] { get; set; }
     }
     public class ChessBoard : IChessBoard
     {
@@ -69,7 +68,7 @@ namespace Chess.Domain
         private AttackPosInfo m_posInfo;
 
         /// <summary>NULL position info</summary>
-        public static readonly AttackPosInfo s_attackPosInfoNull = new(0, 0);
+        public static readonly AttackPosInfo sAttackPosInfoNull = new(0, 0);
         /// <summary>Possible diagonal or linear moves for each board position</summary>
         private static readonly int[][][] s_caseMoveDiagLine;
         /// <summary>Possible diagonal moves for each board position</summary>
@@ -143,8 +142,8 @@ namespace Chess.Domain
         /// </summary>
         static ChessBoard()
         {
-            s_attackPosInfoNull.PiecesAttacked = 0;
-            s_attackPosInfoNull.PiecesDefending = 0;
+            sAttackPosInfoNull.PiecesAttacked = 0;
+            sAttackPosInfoNull.PiecesDefending = 0;
             s_caseMoveDiagLine = new int[64][][];
             s_caseMoveDiagonal = new int[64][][];
             s_caseMoveLine = new int[64][][];
@@ -184,7 +183,7 @@ namespace Chess.Domain
         /// <param name="squarePos">   Square position of the piece</param>
         /// <param name="deltas">      Array of delta (in tuple) used to list the accessible position</param>
         /// <param name="canBeRepeat"> True for Queen, Rook and Bishop. False for Knight, King and Pawn</param>
-        static private int[][] GetAccessibleSquares(int squarePos, int[] deltas, bool canBeRepeat)
+        private static int[][] GetAccessibleSquares(int squarePos, int[] deltas, bool canBeRepeat)
         {
             List<int[]> retVal = new(4);
             int colPos;
@@ -251,7 +250,7 @@ namespace Chess.Domain
             MoveHistory = new MoveHistory();
             IsDesignMode = false;
             MovePosStack = new MovePosStack();
-          //  m_boardAdaptor = new ChessGameBoardAdaptor(this, dispatcher);
+            //  m_boardAdaptor = new ChessGameBoardAdaptor(this, dispatcher);
             ResetBoard();
         }
 
@@ -259,7 +258,10 @@ namespace Chess.Domain
         /// Class constructor. Use to create a new clone
         /// </summary>
         /// <param name="chessBoard">   Board to copy from</param>
-        private ChessBoard(ChessBoard chessBoard) : this(/*chessBoard.m_boardAdaptor.Dispatcher*/) => CopyFrom(chessBoard);
+        private ChessBoard(ChessBoard chessBoard) : this(/*chessBoard.m_boardAdaptor.Dispatcher*/)
+        {
+            CopyFrom(chessBoard);
+        }
 
         /// <summary>
         /// Copy the state of the board from the specified one.
@@ -274,10 +276,10 @@ namespace Chess.Domain
             arr = chessBoard.m_pPossibleEnPassantPosStack.ToArray();
             Array.Reverse(arr);
             m_pPossibleEnPassantPosStack = new Stack<int>(arr);
-           // m_book = chessBoard.m_book;
+            // m_book = chessBoard.m_book;
             m_blackKingPos = chessBoard.m_blackKingPos;
             m_whiteKingPos = chessBoard.m_whiteKingPos;
-           // m_rnd = chessBoard.m_rnd;
+            // m_rnd = chessBoard.m_rnd;
             //m_repRnd = chessBoard.m_repRnd;
             m_rightBlackRookMoveCount = chessBoard.m_rightBlackRookMoveCount;
             m_leftBlackRookMoveCount = chessBoard.m_leftBlackRookMoveCount;
@@ -289,7 +291,7 @@ namespace Chess.Domain
             m_isBlackCastled = chessBoard.m_isBlackCastled;
             m_possibleEnPassantPos = chessBoard.m_possibleEnPassantPos;
             ZobristKey = chessBoard.ZobristKey;
-          //  m_trace = chessBoard.m_trace;
+            //  m_trace = chessBoard.m_trace;
             MovePosStack = chessBoard.MovePosStack.Clone();
             MoveHistory = chessBoard.MoveHistory.Clone();
             CurrentPlayer = chessBoard.CurrentPlayer;
@@ -301,20 +303,23 @@ namespace Chess.Domain
         /// <returns>
         /// New copy of the board
         /// </returns>
-        public ChessBoard Clone() => new(this);
+        public ChessBoard Clone()
+        {
+            return new(this);
+        }
 
 
         /// <summary>
         /// Try to close the design mode.
         /// </summary>
-        /// <param name="nextMoveColor"> Color of the next move</param>
+        /// <param name="startingColor"> Color of the next move</param>
         /// <param name="boardMask">     Board extra information</param>
         /// <param name="enPassantPos">  Position of en passant or 0 if none</param>
         /// <returns>
         /// true if succeed, false if board is invalid
         /// </returns>
-      
-        public bool CloseDesignMode(PlayerColor nextMoveColor, BoardStateMask boardMask, int enPassantPos)
+
+        public bool CloseDesignMode(PlayerColor startingColor, BoardStateMask boardMask, int enPassantPos)
         {
             bool retVal;
 
@@ -324,16 +329,9 @@ namespace Chess.Domain
             }
             else
             {
-                ResetInitialBoardInfo(nextMoveColor, false, boardMask, enPassantPos);
-                if (m_pieceTypeCount[(int)(PieceType.King | PieceType.White)] == 1 &&
-                    m_pieceTypeCount[(int)(PieceType.King | PieceType.Black)] == 1)
-                {
-                    retVal = true;
-                }
-                else
-                {
-                    retVal = false;
-                }
+                ResetInitialBoardInfo(startingColor, false, boardMask, enPassantPos);
+                retVal = m_pieceTypeCount[(int)(PieceType.King | PieceType.White)] == 1 &&
+                    m_pieceTypeCount[(int)(PieceType.King | PieceType.Black)] == 1;
             }
             return retVal;
         }
@@ -385,21 +383,9 @@ namespace Chess.Domain
                 default:
                     playerColor = CurrentPlayer;
                     moveList = EnumMoveList(playerColor);
-                    if (IsCheck(playerColor))
-                    {
-                        retVal = (moveList.Count == 0) ? GameResult.Mate : GameResult.Check;
-                    }
-                    else
-                    {
-                        if (IsEnoughPieceForCheckMate())
-                        {
-                            retVal = (moveList.Count == 0) ? GameResult.TieNoMove : GameResult.OnGoing;
-                        }
-                        else
-                        {
-                            retVal = GameResult.TieNoMatePossible;
-                        }
-                    }
+                    retVal = IsCheck(playerColor)
+                        ? (moveList.Count == 0) ? GameResult.Mate : GameResult.Check
+                        : IsEnoughPieceForCheckMate() ? (moveList.Count == 0) ? GameResult.TieNoMove : GameResult.OnGoing : GameResult.TieNoMatePossible;
                     break;
             }
             return retVal;
@@ -601,7 +587,7 @@ namespace Chess.Domain
                         case PieceType.Pawn | PieceType.White:
                         case PieceType.Pawn | PieceType.Black:
                             delta = move.StartPos - move.EndPos;
-                            if (delta == -16 || delta == 16)
+                            if (delta is (-16) or 16)
                             {
                                 m_possibleEnPassantPos = move.EndPos + (delta >> 1); // Position behind the pawn
                             }
@@ -614,13 +600,14 @@ namespace Chess.Domain
             CurrentPlayer = CurrentPlayer == PlayerColor.White ? PlayerColor.Black : PlayerColor.White;
             return retVal;
         }
-        
+
         /// <summary>
         /// Update the packed board representation and the value of the hash key representing the current board state.
         /// </summary>
         /// <param name="chgPos">   Position of the change</param>
         /// <param name="newPiece"> New piece</param>
-        private void UpdatePackedBoardAndZobristKey(int chgPos, PieceType newPiece) {
+        private void UpdatePackedBoardAndZobristKey(int chgPos, PieceType newPiece)
+        {
             ZobristKey = ZobristKeyUtil.UpdateZobristKey(ZobristKey, chgPos, m_board[chgPos], newPiece);
             MoveHistory.UpdateCurrentPackedBoard(chgPos, newPiece);
         }
@@ -633,7 +620,8 @@ namespace Chess.Domain
         /// <param name="newPiece1"> New piece</param>
         /// <param name="pos2">      Position of the change</param>
         /// <param name="newPiece2"> New piece</param>
-        private void UpdatePackedBoardAndZobristKey(int pos1, PieceType newPiece1, int pos2, PieceType newPiece2) {
+        private void UpdatePackedBoardAndZobristKey(int pos1, PieceType newPiece1, int pos2, PieceType newPiece2)
+        {
             ZobristKey = ZobristKeyUtil.UpdateZobristKey(ZobristKey, pos1, m_board[pos1], newPiece1, pos2, m_board[pos2], newPiece2);
             MoveHistory.UpdateCurrentPackedBoard(pos1, newPiece1);
             MoveHistory.UpdateCurrentPackedBoard(pos2, newPiece2);
@@ -647,7 +635,10 @@ namespace Chess.Domain
         /// <returns>
         /// List of possible moves
         /// </returns>
-        public List<Move> EnumMoveList(PlayerColor playerColor) => EnumMoveList(playerColor, true, out _)!;
+        public List<Move> EnumMoveList(PlayerColor playerColor)
+        {
+            return EnumMoveList(playerColor, true, out _)!;
+        }
 
         /// <summary>
         /// Enumerates the attacking position using an array of possible position and one possible enemy piece
@@ -827,7 +818,10 @@ namespace Chess.Domain
         /// <returns>
         /// true if in check
         /// </returns>
-        private bool IsCheck(PlayerColor playerColor, int kingPos) => EnumAttackPos(playerColor, kingPos, null) != 0;
+        private bool IsCheck(PlayerColor playerColor, int kingPos)
+        {
+            return EnumAttackPos(playerColor, kingPos, null) != 0;
+        }
 
         /// <summary>
         /// Determine if the specified king is attacked
@@ -836,7 +830,11 @@ namespace Chess.Domain
         /// <returns>
         /// true if in check
         /// </returns>
-        public bool IsCheck(PlayerColor playerColor) => IsCheck(playerColor, (playerColor == PlayerColor.Black) ? m_blackKingPos : m_whiteKingPos);
+        public bool IsCheck(PlayerColor playerColor)
+        {
+            return IsCheck(playerColor, (playerColor == PlayerColor.Black) ? m_blackKingPos : m_whiteKingPos);
+        }
+
         /// <summary>
         /// Add a move to the move list if the move doesn't provokes the king to be attacked.
         /// </summary>
@@ -901,9 +899,9 @@ namespace Chess.Domain
             bool retVal;
             PieceType oldPiece;
 
-            retVal = (m_board[endPos] == PieceType.None);
+            retVal = m_board[endPos] == PieceType.None;
             oldPiece = m_board[endPos];
-            if (retVal || ((oldPiece & PieceType.Black) != 0) != (playerColor == PlayerColor.Black))
+            if (retVal || (oldPiece & PieceType.Black) != 0 != (playerColor == PlayerColor.Black))
             {
                 AddIfNotCheck(playerColor, startPos, endPos, MoveType.Normal, listMovePos);
             }
@@ -928,16 +926,16 @@ namespace Chess.Domain
             int rowPos;
             bool canMove2Case;
 
-            rowPos = (startPos >> 3);
+            rowPos = startPos >> 3;
             canMove2Case = (playerColor == PlayerColor.Black) ? (rowPos == 6) : (rowPos == 1);
             dir = (playerColor == PlayerColor.Black) ? -8 : 8;
             newPos = startPos + dir;
-            if (newPos >= 0 && newPos < 64)
+            if (newPos is >= 0 and < 64)
             {
                 if (m_board[newPos] == PieceType.None)
                 {
-                    rowPos = (newPos >> 3);
-                    if (rowPos == 0 || rowPos == 7)
+                    rowPos = newPos >> 3;
+                    if (rowPos is 0 or 7)
                     {
                         AddPawnPromotionIfNotCheck(playerColor, startPos, newPos, movePosList);
                     }
@@ -952,15 +950,15 @@ namespace Chess.Domain
                 }
             }
             newPos = startPos + dir;
-            if (newPos >= 0 && newPos < 64)
+            if (newPos is >= 0 and < 64)
             {
                 newColPos = newPos & 7;
-                rowPos = (newPos >> 3);
+                rowPos = newPos >> 3;
                 if (newColPos != 0 && m_board[newPos - 1] != PieceType.None)
                 {
-                    if (((m_board[newPos - 1] & PieceType.Black) == 0) == (playerColor == PlayerColor.Black))
+                    if ((m_board[newPos - 1] & PieceType.Black) == 0 == (playerColor == PlayerColor.Black))
                     {
-                        if (rowPos == 0 || rowPos == 7)
+                        if (rowPos is 0 or 7)
                         {
                             AddPawnPromotionIfNotCheck(playerColor, startPos, newPos - 1, movePosList);
                         }
@@ -976,9 +974,9 @@ namespace Chess.Domain
                 }
                 if (newColPos != 7 && m_board[newPos + 1] != PieceType.None)
                 {
-                    if (((m_board[newPos + 1] & PieceType.Black) == 0) == (playerColor == PlayerColor.Black))
+                    if ((m_board[newPos + 1] & PieceType.Black) == 0 == (playerColor == PlayerColor.Black))
                     {
-                        if (rowPos == 0 || rowPos == 7)
+                        if (rowPos is 0 or 7)
                         {
                             AddPawnPromotionIfNotCheck(playerColor, startPos, newPos + 1, movePosList);
                         }
@@ -1079,7 +1077,7 @@ namespace Chess.Domain
         {
             foreach (int newPos in moveListForThisCase)
             {
-                AddMoveIfEnemyOrEmpty(playerColor, startPos, newPos, listMovePos);
+                _ = AddMoveIfEnemyOrEmpty(playerColor, startPos, newPos, listMovePos);
             }
         }
 
@@ -1100,12 +1098,12 @@ namespace Chess.Domain
 
             m_posInfo.PiecesAttacked = 0;
             m_posInfo.PiecesDefending = 0;
-            retVal = (isMoveListNeeded) ? new List<Move>(256) : null;
-            isBlackToMove = (playerColor == PlayerColor.Black);
+            retVal = isMoveListNeeded ? new List<Move>(256) : null;
+            isBlackToMove = playerColor == PlayerColor.Black;
             for (int i = 0; i < 64; i++)
             {
                 pieceType = m_board[i];
-                if (pieceType != PieceType.None && ((pieceType & PieceType.Black) != 0) == isBlackToMove)
+                if (pieceType != PieceType.None && (pieceType & PieceType.Black) != 0 == isBlackToMove)
                 {
                     switch (pieceType & PieceType.PieceMask)
                     {
@@ -1140,7 +1138,10 @@ namespace Chess.Domain
         /// <summary>
         /// Open the design mode
         /// </summary>
-        public void OpenDesignMode() => IsDesignMode = true;
+        public void OpenDesignMode()
+        {
+            IsDesignMode = true;
+        }
 
         /// <summary>
         /// Reset the board to the initial configuration
@@ -1159,19 +1160,19 @@ namespace Chess.Domain
             m_board[0] = PieceType.Rook | PieceType.White;
             m_board[7 * 8] = PieceType.Rook | PieceType.Black;
             m_board[7] = PieceType.Rook | PieceType.White;
-            m_board[7 * 8 + 7] = PieceType.Rook | PieceType.Black;
+            m_board[(7 * 8) + 7] = PieceType.Rook | PieceType.Black;
             m_board[1] = PieceType.Knight | PieceType.White;
-            m_board[7 * 8 + 1] = PieceType.Knight | PieceType.Black;
+            m_board[(7 * 8) + 1] = PieceType.Knight | PieceType.Black;
             m_board[6] = PieceType.Knight | PieceType.White;
-            m_board[7 * 8 + 6] = PieceType.Knight | PieceType.Black;
+            m_board[(7 * 8) + 6] = PieceType.Knight | PieceType.Black;
             m_board[2] = PieceType.Bishop | PieceType.White;
-            m_board[7 * 8 + 2] = PieceType.Bishop | PieceType.Black;
+            m_board[(7 * 8) + 2] = PieceType.Bishop | PieceType.Black;
             m_board[5] = PieceType.Bishop | PieceType.White;
-            m_board[7 * 8 + 5] = PieceType.Bishop | PieceType.Black;
+            m_board[(7 * 8) + 5] = PieceType.Bishop | PieceType.Black;
             m_board[3] = PieceType.King | PieceType.White;
-            m_board[7 * 8 + 3] = PieceType.King | PieceType.Black;
+            m_board[(7 * 8) + 3] = PieceType.King | PieceType.Black;
             m_board[4] = PieceType.Queen | PieceType.White;
-            m_board[7 * 8 + 4] = PieceType.Queen | PieceType.Black;
+            m_board[(7 * 8) + 4] = PieceType.Queen | PieceType.Black;
             ResetInitialBoardInfo(PlayerColor.White,
                                   isStdBoard: true,
                                   BoardStateMask.BLCastling | BoardStateMask.BRCastling | BoardStateMask.WLCastling | BoardStateMask.WRCastling,
@@ -1208,8 +1209,8 @@ namespace Chess.Domain
             }
             if (enPassantPos != 0)
             {
-                enPassantCol = (enPassantPos >> 3);
-                if (enPassantCol != 2 && enPassantCol != 5)
+                enPassantCol = enPassantPos >> 3;
+                if (enPassantCol is not 2 and not 5)
                 {
                     if (enPassantCol == 3)
                     {   // Fixing old saved board which was keeping the en passant position at the position of the pawn instead of behind it

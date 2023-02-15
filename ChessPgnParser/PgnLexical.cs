@@ -1,8 +1,4 @@
 ﻿using Chess.Pgn.IParser.Exceptions;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text;
 
 
@@ -65,16 +61,14 @@ namespace Chess.Pgn.Parser
         private List<char[]?> m_buffer;
         /// <summary>Position in the buffer</summary>
         private int m_posInBuffer;
-        /// <summary>Position in the list</summary>
-        private int m_posInList;
+
         /// <summary>Current array</summary>
         private char[]? m_curArray;
         /// <summary>Current array size</summary>
         private int m_curArraySize;
         /// <summary>Position within the raw array</summary>
         private long m_curBasePos;
-        /// <summary>Text size</summary>
-        private long m_textSize;
+
         /// <summary>Pushed character if any</summary>
         private char? m_chrPushed;
         /// <summary>true if at the first character of a line</summary>
@@ -99,9 +93,9 @@ namespace Chess.Pgn.Parser
         {
             m_buffer = new List<char[]?>(256);
             m_posInBuffer = 0;
-            m_posInList = 0;
+            CurrentBufferPos = 0;
             m_curBasePos = 0;
-            m_textSize = 0;
+            TextSize = 0;
             m_chrPushed = null;
             m_tokPushed = null;
             m_isFirstChrInLine = true;
@@ -119,7 +113,7 @@ namespace Chess.Pgn.Parser
         /// <summary>
         /// Text size
         /// </summary>
-        public long TextSize => m_textSize;
+        public long TextSize { get; private set; }
 
         /// <summary>
         /// Gets the number of buffer which has been allocated
@@ -129,7 +123,7 @@ namespace Chess.Pgn.Parser
         /// <summary>
         /// Current buffer position
         /// </summary>
-        public int CurrentBufferPos => m_posInList;
+        public int CurrentBufferPos { get; private set; }
 
         /// <summary>
         /// Initialize the buffer from a file
@@ -180,7 +174,7 @@ namespace Chess.Pgn.Parser
             m_buffer.Add(text.ToArray());
             m_curArray = m_buffer[0];
             m_curArraySize = m_curArray!.Length;
-            m_textSize = m_curArraySize;
+            TextSize = m_curArraySize;
         }
 
         /// <summary>
@@ -195,17 +189,17 @@ namespace Chess.Pgn.Parser
             Clear(allocateEmpty: false);
             arr = new char[MaxBufferSize];
             readSize = streamReader.ReadBlock(arr, 0, MaxBufferSize);
-            m_textSize = 0;
+            TextSize = 0;
             while (readSize == MaxBufferSize)
             {
-                m_textSize += MaxBufferSize;
+                TextSize += MaxBufferSize;
                 m_buffer.Add(arr);
                 arr = new char[MaxBufferSize];
                 readSize = streamReader.ReadBlock(arr, 0, MaxBufferSize);
             }
             if (readSize != 0)
             {
-                m_textSize += readSize;
+                TextSize += readSize;
                 tmpArr = new char[readSize];
                 for (int i = 0; i < readSize; i++)
                 {
@@ -231,10 +225,10 @@ namespace Chess.Pgn.Parser
         {
             bool retVal;
 
-            if (m_posInList + 1 < m_buffer.Count)
+            if (CurrentBufferPos + 1 < m_buffer.Count)
             {
                 m_curBasePos += m_curArray!.Length;
-                m_curArray = m_buffer[++m_posInList];
+                m_curArray = m_buffer[++CurrentBufferPos];
                 m_posInBuffer = 0;
                 m_curArraySize = m_curArray!.Length;
                 retVal = true;
@@ -265,9 +259,9 @@ namespace Chess.Pgn.Parser
             {
                 retVal = m_curArray![m_posInBuffer];
             }
-            else if (m_posInList + 1 < m_buffer.Count)
+            else if (CurrentBufferPos + 1 < m_buffer.Count)
             {
-                arr = m_buffer[m_posInList + 1]!;
+                arr = m_buffer[CurrentBufferPos + 1]!;
                 retVal = arr.Length == 0 ? '\0' : arr[0];
             }
             else
@@ -330,14 +324,7 @@ namespace Chess.Pgn.Parser
         /// <param name="chr">  Character to push</param>
         public void PushChr(char chr)
         {
-            if (m_chrPushed == null)
-            {
-                m_chrPushed = chr;
-            }
-            else
-            {
-                throw new MethodAccessException("Cannot push two characters!");
-            }
+            m_chrPushed = m_chrPushed == null ? chr : throw new MethodAccessException("Cannot push two characters!");
         }
 
         /// <summary>
@@ -365,14 +352,7 @@ namespace Chess.Pgn.Parser
                         }
                         m_posInBuffer++;
                     }
-                    if (m_posInBuffer < m_curArraySize)
-                    {
-                        isNextArray = false;
-                    }
-                    else
-                    {
-                        isNextArray = SelectNextBuffer();
-                    }
+                    isNextArray = m_posInBuffer >= m_curArraySize && SelectNextBuffer();
                 } while (isNextArray);
             }
         }
@@ -387,10 +367,10 @@ namespace Chess.Pgn.Parser
             do
             {
                 chr = GetChrInt();
-            } while (chr != '\r' && chr != '\0');
+            } while (chr is not '\r' and not '\0');
             while (PeekChr() == '\n')
             {
-                GetChrInt();
+                _ = GetChrInt();
             }
             m_isFirstChrInLine = true;
         }
@@ -454,12 +434,12 @@ namespace Chess.Pgn.Parser
                     maxSize = arr!.Length - posInBuf;
                     if (length <= maxSize)
                     {
-                        strb.Append(arr, posInBuf, length);
+                        _ = strb.Append(arr, posInBuf, length);
                     }
                     else if (posInList < m_buffer.Count)
                     {
-                        strb.Append(arr, posInBuf, maxSize);
-                        strb.Append(m_buffer[posInList + 1], 0, length - maxSize);
+                        _ = strb.Append(arr, posInBuf, maxSize);
+                        _ = strb.Append(m_buffer[posInList + 1], 0, length - maxSize);
                     }
                 }
                 retVal = posInList == -1 ? null : strb.ToString();
@@ -475,16 +455,7 @@ namespace Chess.Pgn.Parser
         /// </returns>
         public bool IsOnlyFen()
         {
-            bool retVal;
-
-            if (m_buffer.Count > 1)
-            {
-                retVal = false;
-            }
-            else
-            {
-                retVal = m_buffer[0]!.Count(x => x == '\r') <= 1;
-            }
+            bool retVal = m_buffer.Count <= 1 && m_buffer[0]!.Count(x => x == '\r') <= 1;
             return retVal;
         }
 
@@ -495,7 +466,7 @@ namespace Chess.Pgn.Parser
         {
             int index;
 
-            index = m_posInList - 2;
+            index = CurrentBufferPos - 2;
             while (index >= 0 && m_buffer[index] != null)
             {
                 m_buffer[index] = null;
@@ -528,18 +499,18 @@ namespace Chess.Pgn.Parser
                         chr = GetChr();
                         if (chr == '"')
                         {
-                            strb.Append(chr);
+                            _ = strb.Append(chr);
                         }
                         else
                         {
-                            strb.Append('\\');
-                            strb.Append(chr);
+                            _ = strb.Append('\\');
+                            _ = strb.Append(chr);
                         }
                         break;
                     case '"':
                         break;
                     default:
-                        strb.Append(chr);
+                        _ = strb.Append(chr);
                         break;
                 }
             } while (chr != '"');
@@ -561,7 +532,7 @@ namespace Chess.Pgn.Parser
             retVal = firstChr - '0';
             while ((chr = GetChr()) >= '0' && chr <= '9')
             {
-                retVal = retVal * 10 + (chr - '0');
+                retVal = (retVal * 10) + (chr - '0');
             }
             PushChr(chr);
             return retVal;
@@ -582,26 +553,26 @@ namespace Chess.Pgn.Parser
             StringBuilder strb;
 
             isSlashFound = false;
-            isAllDigit = firstChr >= '0' && firstChr <= '9';
+            isAllDigit = firstChr is >= '0' and <= '9';
             strb = new StringBuilder();
-            strb.Append(firstChr);
+            _ = strb.Append(firstChr);
             chr = GetChr();
-            while (chr >= 'a' && chr <= 'z' ||
-                   chr >= 'A' && chr <= 'Z' ||
-                   chr >= '0' && chr <= '9' ||
-                   chr == '_' ||
-                   chr == '+' ||
-                   chr == '#' ||
-                   chr == '=' ||
-                   chr == ':' ||
-                   chr == '-' ||
-                   chr == '/')
+            while (chr is (>= 'a' and <= 'z') or
+                   (>= 'A' and <= 'Z') or
+                   (>= '0' and <= '9') or
+                   '_' or
+                   '+' or
+                   '#' or
+                   '=' or
+                   ':' or
+                   '-' or
+                   '/')
             {
                 if (chr == '/')
                 {
                     isSlashFound = true;
                 }
-                strb.Append(chr);
+                _ = strb.Append(chr);
                 if (isAllDigit && (chr < '0' || chr > '9'))
                 {
                     isAllDigit = false;
@@ -653,13 +624,13 @@ namespace Chess.Pgn.Parser
                             retVal.Type = TokenType.Dot;
                             while (PeekChr() == '.')
                             {
-                                GetChr();
+                                _ = GetChr();
                             }
                             retVal.Size = (int)(CurrentPosition - retVal.StartPos + 1);
                             break;
                         case '$':
                             chr = GetChr();
-                            if (chr < '0' || chr > '9')
+                            if (chr is < '0' or > '9')
                             {
                                 throw new PgnParserException("Invalid NAG");
                             }
@@ -680,7 +651,11 @@ namespace Chess.Pgn.Parser
                             break;
                         case '{':
                             isComment = true;
-                            while ((chr = GetChr()) != 0 && chr != '}') ;
+                            while ((chr = GetChr()) != 0 && chr != '}')
+                            {
+                                ;
+                            }
+
                             break;
                         case '(':
                             isComment = true;
@@ -697,13 +672,16 @@ namespace Chess.Pgn.Parser
                                 }
                                 else if (chr == '{')
                                 {
-                                    while ((chr = GetChr()) != 0 && chr != '}') ;
+                                    while ((chr = GetChr()) != 0 && chr != '}')
+                                    {
+                                        ;
+                                    }
                                 }
                             }
                             break;
                         case '-':
                             retVal.Type = TokenType.UnknownToken;
-                            retVal.StrValue = GetSymbolToken('-', out bool _, out bool _);
+                            retVal.StrValue = GetSymbolToken('-', out _, out _);
                             break;
                         case '*':
                             retVal.Type = TokenType.Termination;
@@ -711,9 +689,9 @@ namespace Chess.Pgn.Parser
                             retVal.Size = 1;
                             break;
                         default:
-                            if (chr >= 'a' && chr <= 'z' ||
-                                chr >= 'A' && chr <= 'Z' ||
-                                chr >= '0' && chr <= '9')
+                            if (chr is (>= 'a' and <= 'z') or
+                                (>= 'A' and <= 'Z') or
+                                (>= '0' and <= '9'))
                             {
                                 retVal.StrValue = GetSymbolToken(chr, out bool isAllDigit, out bool isSlashFound);
                                 retVal.Size = (int)(CurrentPosition - retVal.StartPos - 1);
@@ -792,14 +770,7 @@ namespace Chess.Pgn.Parser
         /// </returns>
         public void PushToken(Token tok)
         {
-            if (!m_tokPushed.HasValue)
-            {
-                m_tokPushed = tok;
-            }
-            else
-            {
-                throw new MethodAccessException("Cannot push two tokens!");
-            }
+            m_tokPushed = !m_tokPushed.HasValue ? (Token?)tok : throw new MethodAccessException("Cannot push two tokens!");
         }
 
         /// <summary>

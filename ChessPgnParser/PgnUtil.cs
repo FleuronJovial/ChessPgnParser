@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Chess.Pgn.Parser
+﻿namespace Chess.Pgn.Parser
 {
     public static class PgnUtil
     {
@@ -30,14 +24,7 @@ namespace Chess.Pgn.Parser
             {
                 chr1 = move.ToLower()[0];
                 chr2 = move[1];
-                if (chr1 < 'a' || chr1 > 'h' || chr2 < '1' || chr2 > '8')
-                {
-                    retVal = -1;
-                }
-                else
-                {
-                    retVal = 7 - (chr1 - 'a') + ((chr2 - '0') << 3);
-                }
+                retVal = chr1 < 'a' || chr1 > 'h' || chr2 < '1' || chr2 > '8' ? -1 : 7 - (chr1 - 'a') + ((chr2 - '0') << 3);
             }
             return retVal;
         }

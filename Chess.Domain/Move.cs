@@ -40,7 +40,7 @@ namespace Chess.Domain
         /// <returns>
         /// Human form position
         /// </returns>
-        static private string GetHumanPos(int pos)
+        private static string GetHumanPos(int pos)
         {
             string retVal;
             int colPos;
@@ -91,7 +91,9 @@ namespace Chess.Domain
         /// Transform to a string
         /// </summary>
         /// <returns>Human readable move</returns>
-        public override string ToString() => GetHumanPos();
-
+        public override string ToString()
+        {
+            return GetHumanPos();
+        }
     }
 }

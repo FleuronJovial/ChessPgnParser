@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using Chess.Domain.Enums;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Serialization;
 using System.Xml;
-using Chess.Domain.Enums;
+using System.Xml.Serialization;
 
 namespace Chess.Domain
 {    /// <summary>
@@ -135,7 +130,10 @@ namespace Chess.Domain
         /// <returns>
         /// A new clone of the MoveHistory
         /// </returns>
-        public MoveHistory Clone() => new(this);
+        public MoveHistory Clone()
+        {
+            return new(this);
+        }
 
         /// <summary>
         /// Returns the XML schema if any
@@ -143,7 +141,10 @@ namespace Chess.Domain
         /// <returns>
         /// null
         /// </returns>
-        System.Xml.Schema.XmlSchema? IXmlSerializable.GetSchema() => null;
+        System.Xml.Schema.XmlSchema? IXmlSerializable.GetSchema()
+        {
+            return null;
+        }
 
         /// <summary>
         /// Deserialize the object from a XML reader
@@ -172,7 +173,7 @@ namespace Chess.Domain
                         memStream.Write(bytes, 0, count);
                     }
                 } while (count != 0);
-                memStream.Seek(0, SeekOrigin.Begin);
+                _ = memStream.Seek(0, SeekOrigin.Begin);
                 binReader = new BinaryReader(memStream);
                 using (binReader)
                 {
@@ -216,7 +217,7 @@ namespace Chess.Domain
             packedBoard.m_val2 = 0;
             packedBoard.m_val3 = 0;
             packedBoard.m_val4 = 0;
-            packedBoard.m_info = (BoardStateMask)0;
+            packedBoard.m_info = 0;
             Array.Clear(m_hashesCount, 0, m_hashesCount.Length);
             m_curPackedBoard.LoadFromStream(reader);
             board = new PieceType[64];
@@ -274,12 +275,14 @@ namespace Chess.Domain
         /// true if equal, false if not
         /// </returns>
         private static bool IsTwoBoardEqual(PackedBoard board1, PackedBoard board2)
-                => board1.m_info == board2.m_info &&
-                   board1.m_val1 == board2.m_val1 &&
-                   board1.m_val2 == board2.m_val2 &&
-                   board1.m_val3 == board2.m_val3 &&
-                   board1.m_val4 == board2.m_val4 &&
-                   ((board1.m_info | board2.m_info) & BoardStateMask.EnPassant) == 0;
+        {
+            return board1.m_info == board2.m_info &&
+                           board1.m_val1 == board2.m_val1 &&
+                           board1.m_val2 == board2.m_val2 &&
+                           board1.m_val3 == board2.m_val3 &&
+                           board1.m_val4 == board2.m_val4 &&
+                           ((board1.m_info | board2.m_info) & BoardStateMask.EnPassant) == 0;
+        }
 
         /// <summary>
         /// Gets the number of time the specified board is in the history (for the same color)
@@ -473,7 +476,10 @@ namespace Chess.Domain
         /// </summary>
         /// <param name="board"> Board array</param>
         /// <param name="info">  Board extra info</param>
-        private void ComputeCurrentPackedBoard(PieceType[] board, BoardStateMask info) => m_curPackedBoard = ComputePackedBoard(board, info);
+        private void ComputeCurrentPackedBoard(PieceType[] board, BoardStateMask info)
+        {
+            m_curPackedBoard = ComputePackedBoard(board, info);
+        }
 
         /// <summary>
         /// Unpack a packed board value to a board
@@ -552,7 +558,9 @@ namespace Chess.Domain
         /// Update the current board packing
         /// </summary>
         /// <param name="info">        Board extra info</param>
-        public void UpdateCurrentPackedBoard(BoardStateMask info) => m_curPackedBoard.m_info = info & ~BoardStateMask.BlackToMove;
-
+        public void UpdateCurrentPackedBoard(BoardStateMask info)
+        {
+            m_curPackedBoard.m_info = info & ~BoardStateMask.BlackToMove;
+        }
     } // Class MoveHistory
 } // Class name

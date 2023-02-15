@@ -2,7 +2,6 @@
 using Chess.Domain.Enums;
 using Chess.Pgn.IParser.Exceptions;
 using Chess.Pgn.Parser.Enums;
-using System.Runtime.Serialization;
 
 namespace Chess.Pgn.Parser
 {
@@ -28,17 +27,10 @@ namespace Chess.Pgn.Parser
     /// </summary>
     public class PgnParser
     {
-
-
-
-        /// <summary>true to cancel the parsing job</summary>
-        private static bool m_isJobCancelled;
         /// <summary>Board use to play as we decode</summary>
         private readonly IChessBoard m_chessBoard;
         /// <summary>true to diagnose the parser. This generate exception when a move cannot be resolved</summary>
         private readonly bool m_isDiagnoseOn;
-        /// <summary>PGN Lexical Analyser</summary>
-        private PgnLexical? m_pgnLexical;
 
         /// <summary>
         /// Class Ctor
@@ -48,7 +40,7 @@ namespace Chess.Pgn.Parser
         {
             m_chessBoard = new ChessBoard();
             m_isDiagnoseOn = isDiagnoseOn;
-            m_pgnLexical = null;
+            PgnLexical = null;
         }
 
         /// <summary>
@@ -59,7 +51,7 @@ namespace Chess.Pgn.Parser
         {
             m_chessBoard = chessBoard;
             m_isDiagnoseOn = false;
-            m_pgnLexical = null;
+            PgnLexical = null;
         }
 
         /// <summary>
@@ -71,8 +63,8 @@ namespace Chess.Pgn.Parser
         {
             bool retVal;
 
-            m_pgnLexical ??= new PgnLexical();
-            retVal = m_pgnLexical.InitFromFile(fileName);
+            PgnLexical ??= new PgnLexical();
+            retVal = PgnLexical.InitFromFile(fileName);
             return retVal;
         }
 
@@ -82,20 +74,23 @@ namespace Chess.Pgn.Parser
         /// <param name="text">  PGN Text</param>
         public void InitFromString(string text)
         {
-            m_pgnLexical ??= new PgnLexical();
-            m_pgnLexical.InitFromString(text);
+            PgnLexical ??= new PgnLexical();
+            PgnLexical.InitFromString(text);
         }
 
         /// <summary>
         /// Initialize from a PGN buffer object
         /// </summary>
         /// <param name="pgnLexical">    PGN Lexical Analyser</param>
-        public void InitFromPgnBuffer(PgnLexical pgnLexical) => m_pgnLexical = pgnLexical;
+        public void InitFromPgnBuffer(PgnLexical pgnLexical)
+        {
+            PgnLexical = pgnLexical;
+        }
 
         /// <summary>
         /// PGN buffer
         /// </summary>
-        public PgnLexical? PgnLexical => m_pgnLexical;
+        public PgnLexical? PgnLexical { get; private set; }
 
         /// <summary>
         /// Return the code of the current game
@@ -103,7 +98,10 @@ namespace Chess.Pgn.Parser
         /// <returns>
         /// Current game
         /// </returns>
-        private string GetCodeInError(long startPos, int length) => m_pgnLexical!.GetStringAtPos(startPos, length)!;
+        private string GetCodeInError(long startPos, int length)
+        {
+            return PgnLexical!.GetStringAtPos(startPos, length)!;
+        }
 
         /// <summary>
         /// Return the code of the current game
@@ -112,7 +110,10 @@ namespace Chess.Pgn.Parser
         /// <returns>
         /// Current game
         /// </returns>
-        private string GetCodeInError(PgnLexical.Token tok) => m_pgnLexical!.GetStringAtPos(tok.StartPos, tok.Size)!;
+        private string GetCodeInError(PgnLexical.Token tok)
+        {
+            return PgnLexical!.GetStringAtPos(tok.StartPos, tok.Size)!;
+        }
 
         /// <summary>
         /// Return the code of the current game
@@ -121,7 +122,10 @@ namespace Chess.Pgn.Parser
         /// <returns>
         /// Current game
         /// </returns>
-        private string GetCodeInError(PgnGame pgnGame) => GetCodeInError(pgnGame.StartingPos, pgnGame.Length);
+        private string GetCodeInError(PgnGame pgnGame)
+        {
+            return GetCodeInError(pgnGame.StartingPos, pgnGame.Length);
+        }
 
         /// <summary>
         /// Callback for 
@@ -162,18 +166,18 @@ namespace Chess.Pgn.Parser
                     }
                     startCol = -1;
                     startRow = -1;
-                    endPos = 7 - (chr1 - 'a') + (chr2 - '1' << 3);
+                    endPos = 7 - (chr1 - 'a') + ((chr2 - '1') << 3);
                     break;
                 case 3:
                     chr1 = pos[0];
                     chr2 = pos[1];
                     chr3 = pos[2];
-                    if (chr1 >= 'a' && chr1 <= 'h')
+                    if (chr1 is >= 'a' and <= 'h')
                     {
                         startCol = 7 - (chr1 - 'a');
                         startRow = -1;
                     }
-                    else if (chr1 >= '1' && chr1 <= '8')
+                    else if (chr1 is >= '1' and <= '8')
                     {
                         startCol = -1;
                         startRow = chr1 - '1';
@@ -187,7 +191,7 @@ namespace Chess.Pgn.Parser
                     {
                         throw new PgnParserException("Unable to decode position", GetCodeInError(pgnGame));
                     }
-                    endPos = 7 - (chr2 - 'a') + (chr3 - '1' << 3);
+                    endPos = 7 - (chr2 - 'a') + ((chr3 - '1') << 3);
                     break;
                 case 4:
                     chr1 = pos[0];
@@ -203,7 +207,7 @@ namespace Chess.Pgn.Parser
                     }
                     startCol = 7 - (chr1 - 'a');
                     startRow = chr2 - '1';
-                    endPos = 7 - (chr3 - 'a') + (chr4 - '1' << 3);
+                    endPos = 7 - (chr3 - 'a') + ((chr4 - '1') << 3);
                     break;
                 default:
                     throw new PgnParserException("Unable to decode position", GetCodeInError(pgnGame));
@@ -235,12 +239,12 @@ namespace Chess.Pgn.Parser
             {
                 if ((moveTmp.Type & MoveType.MoveTypeMask) == MoveType.Castle)
                 {
-                    delta = ((int)moveTmp.StartPos & 7) - ((int)moveTmp.EndPos & 7);
+                    delta = (moveTmp.StartPos & 7) - (moveTmp.EndPos & 7);
                     if (delta == deltaWanted)
                     {
                         retVal = (short)(moveTmp.StartPos + (moveTmp.EndPos << 8));
                         move = new MoveExt(moveTmp);
-                        m_chessBoard.DoMove(move);
+                        _ = m_chessBoard.DoMove(move);
                     }
                 }
             }
@@ -282,12 +286,12 @@ namespace Chess.Pgn.Parser
             movePosList = m_chessBoard.EnumMoveList(playerColor);
             foreach (Move tmpMove in movePosList)
             {
-                if ((int)tmpMove.EndPos == endPos && m_chessBoard[(int)tmpMove.StartPos] == pieceType)
+                if (tmpMove.EndPos == endPos && m_chessBoard[tmpMove.StartPos] == pieceType)
                 {
                     if (moveType == MoveType.Normal || (tmpMove.Type & MoveType.MoveTypeMask) == moveType)
                     {
-                        col = (int)tmpMove.StartPos & 7;
-                        row = (int)tmpMove.StartPos >> 3;
+                        col = tmpMove.StartPos & 7;
+                        row = tmpMove.StartPos >> 3;
                         if ((startCol == -1 || startCol == col) &&
                             (startRow == -1 || startRow == row))
                         {
@@ -296,8 +300,8 @@ namespace Chess.Pgn.Parser
                                 throw new PgnParserException($"More then one piece found for this move - {moveTxt}", GetCodeInError(pgnGame));
                             }
                             move = new MoveExt(tmpMove);
-                            retVal = (short)((int)tmpMove.StartPos + ((int)tmpMove.EndPos << 8));
-                            m_chessBoard.DoMove(move);
+                            retVal = (short)(tmpMove.StartPos + (tmpMove.EndPos << 8));
+                            _ = m_chessBoard.DoMove(move);
                         }
                     }
                 }
@@ -470,7 +474,7 @@ namespace Chess.Pgn.Parser
             int blankCount;
             PieceType pieceType;
 
-            boardStateMask = (BoardStateMask)0;
+            boardStateMask = 0;
             enPassantPos = 0;
             colorToMove = PlayerColor.White;
             cmds = fenTxt.Split(' ');
@@ -533,7 +537,7 @@ namespace Chess.Pgn.Parser
                                     pieceType = PieceType.King | PieceType.Black;
                                     break;
                                 default:
-                                    if (chr >= '1' && chr <= '8')
+                                    if (chr is >= '1' and <= '8')
                                     {
                                         blankCount = int.Parse(chr.ToString());
                                         if (blankCount + linePos <= 8)
@@ -633,7 +637,7 @@ namespace Chess.Pgn.Parser
 
             m_chessBoard.OpenDesignMode();
             retVal = ParseFen(fenTxt, out startingColor, out BoardStateMask boardMask, out int enPassantPos);
-            m_chessBoard.CloseDesignMode(startingColor, boardMask, enPassantPos);
+            _ = m_chessBoard.CloseDesignMode(startingColor, boardMask, enPassantPos);
             chessBoard = retVal ? m_chessBoard.Clone() : null;
             return retVal;
         }
@@ -658,14 +662,14 @@ namespace Chess.Pgn.Parser
             PgnLexical.Token tok;
 
             plyIndex = 2;
-            tok = m_pgnLexical!.GetNextToken();
+            tok = PgnLexical!.GetNextToken();
             isBadMoveFound = false;
             switch (tok.Type)
             {
                 case PgnLexical.TokenType.Integer:
                 case PgnLexical.TokenType.Symbol:
                 case PgnLexical.TokenType.Nag:
-                    while (tok.Type != PgnLexical.TokenType.Eof && tok.Type != PgnLexical.TokenType.Termination)
+                    while (tok.Type is not PgnLexical.TokenType.Eof and not PgnLexical.TokenType.Termination)
                     {
                         switch (tok.Type)
                         {
@@ -695,17 +699,17 @@ namespace Chess.Pgn.Parser
                             case PgnLexical.TokenType.Nag:
                                 break;
                         }
-                        tok = m_pgnLexical.GetNextToken();
+                        tok = PgnLexical.GetNextToken();
                     }
                     if (tok.Type != PgnLexical.TokenType.Eof)
                     {
-                        m_pgnLexical.AssumeToken(PgnLexical.TokenType.Termination, tok);
+                        PgnLexical.AssumeToken(PgnLexical.TokenType.Termination, tok);
                     }
                     break;
                 case PgnLexical.TokenType.Termination:
                     break;
                 default:
-                    m_pgnLexical.PushToken(tok);
+                    PgnLexical.PushToken(tok);
                     break;
             }
         }
@@ -731,20 +735,20 @@ namespace Chess.Pgn.Parser
             PgnLexical.Token tokValue;
 
             retVal = attrs;
-            tok = m_pgnLexical!.GetNextToken();
+            tok = PgnLexical!.GetNextToken();
             while (tok.Type == PgnLexical.TokenType.OpenSBracket)
             {
-                tokName = m_pgnLexical.AssumeToken(PgnLexical.TokenType.Symbol);
-                tokValue = m_pgnLexical.AssumeToken(PgnLexical.TokenType.String);
-                m_pgnLexical.AssumeToken(PgnLexical.TokenType.CloseSBracket);
+                tokName = PgnLexical.AssumeToken(PgnLexical.TokenType.Symbol);
+                tokValue = PgnLexical.AssumeToken(PgnLexical.TokenType.String);
+                _ = PgnLexical.AssumeToken(PgnLexical.TokenType.CloseSBracket);
                 if (retVal == null && tokName.StrValue == "FEN")
                 {
                     retVal = new Dictionary<string, string>();
                 }
                 retVal?.Add(tokName.StrValue, tokValue.StrValue);
-                tok = m_pgnLexical.GetNextToken();
+                tok = PgnLexical.GetNextToken();
             }
-            m_pgnLexical.PushToken(tok);
+            PgnLexical.PushToken(tok);
             return retVal;
         }
 
@@ -768,7 +772,7 @@ namespace Chess.Pgn.Parser
             string game;
 
             isBadMoveFound = false;
-            tok = m_pgnLexical!.PeekToken();
+            tok = PgnLexical!.PeekToken();
             if (tok.Type == PgnLexical.TokenType.Eof)
             {
                 pgnGame = null;
@@ -794,7 +798,7 @@ namespace Chess.Pgn.Parser
                 }
                 pgnGame.Attrs = ParseAttrs(pgnGame.Attrs);
                 ParseMoves(pgnGame.SanMoves, pgnGame.Fen != null, out isBadMoveFound);
-                tok = m_pgnLexical.PeekToken();
+                tok = PgnLexical.PeekToken();
                 pgnGame.Length = (int)(tok.StartPos - pgnGame.StartingPos);
             }
             return pgnGame;
@@ -837,7 +841,7 @@ namespace Chess.Pgn.Parser
             ChessBoard? startingChessBoard;
 
             errTxt = null;
-            if (m_pgnLexical == null)
+            if (PgnLexical == null)
             {
                 throw new MethodAccessException("Must initialize the parser first");
             }
@@ -894,9 +898,9 @@ namespace Chess.Pgn.Parser
 
             startingColor = PlayerColor.White;
             chessBoard = null;
-            if (m_pgnLexical!.IsOnlyFen())
+            if (PgnLexical!.IsOnlyFen())
             {
-                retVal = ParseFen(m_pgnLexical.GetStringAtPos(0, (int)m_pgnLexical.TextSize)!, out startingColor, out chessBoard);
+                retVal = ParseFen(PgnLexical.GetStringAtPos(0, (int)PgnLexical.TextSize)!, out startingColor, out chessBoard);
             }
             return retVal;
         }
@@ -921,7 +925,7 @@ namespace Chess.Pgn.Parser
             bool retVal;
 
             errTxt = null;
-            if (m_pgnLexical == null)
+            if (PgnLexical == null)
             {
                 throw new MethodAccessException("Must initialize the parser first");
             }
@@ -981,17 +985,17 @@ namespace Chess.Pgn.Parser
             int oldBufferPos;
 
             skippedCount = 0;
-            if (m_pgnLexical == null)
+            if (PgnLexical == null)
             {
                 throw new MethodAccessException("Must initialize the parser first");
             }
-            m_isJobCancelled = false;
+            IsJobCancelled = false;
             retVal = new List<PgnGame>(1000000);
-            bufferCount = m_pgnLexical.BufferCount;
+            bufferCount = PgnLexical.BufferCount;
             bufferPos = 0;
             oldBufferPos = 0;
             callback?.Invoke(cookie, ParsingPhase.RawParsing, fileIndex: 0, fileCount: 0, fileName: null, gameProcessed: 0, bufferCount);
-            while (!m_isJobCancelled && (pgnGame = ParsePgn(getAttrList, getMoveList, out bool isBadMoveFound)) != null && !m_isJobCancelled)
+            while (!IsJobCancelled && (pgnGame = ParsePgn(getAttrList, getMoveList, out bool isBadMoveFound)) != null && !IsJobCancelled)
             {
                 if (isBadMoveFound)
                 {
@@ -1005,7 +1009,7 @@ namespace Chess.Pgn.Parser
                     }
                     if (callback != null)
                     {
-                        bufferPos = m_pgnLexical.CurrentBufferPos;
+                        bufferPos = PgnLexical.CurrentBufferPos;
                         if (bufferPos != oldBufferPos)
                         {
                             oldBufferPos = bufferPos;
@@ -1017,7 +1021,7 @@ namespace Chess.Pgn.Parser
                     }
                 }
             }
-            callback?.Invoke(cookie, ParsingPhase.RawParsing, fileIndex: 0, fileCount: 0, fileName: null, m_pgnLexical.CurrentBufferPos, bufferCount);
+            callback?.Invoke(cookie, ParsingPhase.RawParsing, fileIndex: 0, fileCount: 0, fileName: null, PgnLexical.CurrentBufferPos, bufferCount);
             return retVal;
         }
 
@@ -1027,7 +1031,10 @@ namespace Chess.Pgn.Parser
         /// <param name="getMoveList">  true to create move list</param>
         /// <param name="getAttrList">  true to create attributes list</param>
         /// <param name="skippedCount"> Number of games skipped because of bad moves</param>
-        public List<PgnGame> GetAllRawPgn(bool getAttrList, bool getMoveList, out int skippedCount) => GetAllRawPgn(getAttrList, getMoveList, out skippedCount, callback: null, cookie: null);
+        public List<PgnGame> GetAllRawPgn(bool getAttrList, bool getMoveList, out int skippedCount)
+        {
+            return GetAllRawPgn(getAttrList, getMoveList, out skippedCount, callback: null, cookie: null);
+        }
 
         /// <summary>
         /// Analyze the games in the list in multiple threads
@@ -1047,7 +1054,7 @@ namespace Chess.Pgn.Parser
             int localTruncatedCount = 0;
             string? localErrTxt = null;
 
-            Parallel.For(0, threadCount, (threadIndex) =>
+            _ = Parallel.For(0, threadCount, (threadIndex) =>
             {
                 PgnGame pgnGame;
                 int index;
@@ -1058,11 +1065,11 @@ namespace Chess.Pgn.Parser
                 PgnParser parser;
 
                 parser = new PgnParser(false);
-                parser.InitFromPgnBuffer(m_pgnLexical!);
+                parser.InitFromPgnBuffer(PgnLexical!);
                 gamePerThread = pgnGames.Count / threadCount;
                 start = threadIndex * gamePerThread;
                 index = start;
-                while (index < start + gamePerThread && !m_isJobCancelled)
+                while (index < start + gamePerThread && !IsJobCancelled)
                 {
                     pgnGame = pgnGames[index];
                     if (parser.AnalyzePgn(pgnGame,
@@ -1123,26 +1130,26 @@ namespace Chess.Pgn.Parser
             int textSizeInMb;
 
             errTxt = null;
-            if (m_pgnLexical == null)
+            if (PgnLexical == null)
             {
                 throw new MethodAccessException("Must initialize the parser first");
             }
             skipCount = 0;
             truncatedCount = 0;
-            if (m_isJobCancelled)
+            if (IsJobCancelled)
             {
                 retVal = false;
             }
             else
             {
                 threadCount = Environment.ProcessorCount;
-                bufferCount = m_pgnLexical.BufferCount;
+                bufferCount = PgnLexical.BufferCount;
                 oldBufferPos = 0;
-                textSizeInMb = (int)(m_pgnLexical.TextSize / 1048576);
+                textSizeInMb = (int)(PgnLexical.TextSize / 1048576);
                 callback?.Invoke(cookie, ParsingPhase.RawParsing, fileIndex: 0, fileCount: 0, fileName: null, gameProcessed: 0, textSizeInMb);
                 if (threadCount == 1)
                 {
-                    while (retVal && !m_isJobCancelled && (pgnGame = ParsePgn(isAttrList: false, isMoveList: true, out isBadMoveFound)) != null)
+                    while (retVal && !IsJobCancelled && (pgnGame = ParsePgn(isAttrList: false, isMoveList: true, out isBadMoveFound)) != null)
                     {
                         if (isBadMoveFound || pgnGame.Fen != null)
                         {
@@ -1164,7 +1171,7 @@ namespace Chess.Pgn.Parser
                                 }
                                 if (callback != null)
                                 {
-                                    bufferPos = m_pgnLexical.CurrentBufferPos;
+                                    bufferPos = PgnLexical.CurrentBufferPos;
                                     if (bufferPos != oldBufferPos)
                                     {
                                         oldBufferPos = bufferPos;
@@ -1174,7 +1181,7 @@ namespace Chess.Pgn.Parser
                                         }
                                     }
                                 }
-                                m_pgnLexical.FlushOldBuffer();
+                                PgnLexical.FlushOldBuffer();
                             }
                         }
                     }
@@ -1183,7 +1190,7 @@ namespace Chess.Pgn.Parser
                 {
                     batchSize = threadCount * gamePerThread;
                     pgnGameList = new List<PgnGame>(batchSize);
-                    while (retVal && !m_isJobCancelled && (pgnGame = ParsePgn(isAttrList: false, isMoveList: true, out isBadMoveFound)) != null)
+                    while (retVal && !IsJobCancelled && (pgnGame = ParsePgn(isAttrList: false, isMoveList: true, out isBadMoveFound)) != null)
                     {
                         if (isBadMoveFound && pgnGame.Fen != null)
                         {
@@ -1205,10 +1212,10 @@ namespace Chess.Pgn.Parser
                                         }
                                     }
                                     pgnGameList.Clear();
-                                    m_pgnLexical.FlushOldBuffer();
+                                    PgnLexical.FlushOldBuffer();
                                     if (callback != null)
                                     {
-                                        bufferPos = m_pgnLexical.CurrentBufferPos;
+                                        bufferPos = PgnLexical.CurrentBufferPos;
                                         if (bufferPos != oldBufferPos)
                                         {
                                             oldBufferPos = bufferPos;
@@ -1262,13 +1269,13 @@ namespace Chess.Pgn.Parser
             string fileName;
             PgnParser parser;
 
-            m_isJobCancelled = false;
+            IsJobCancelled = false;
             totalSkipped = 0;
             totalTruncated = 0;
             errTxt = null;
             fileIndex = 0;
             movesList = new List<short[]>(1000000);
-            while (fileIndex < fileNames.Length && errTxt == null && !m_isJobCancelled)
+            while (fileIndex < fileNames.Length && errTxt == null && !IsJobCancelled)
             {
                 fileName = fileNames[fileIndex++];
                 callback?.Invoke(cookie, ParsingPhase.OpeningFile, fileIndex, fileNames.Length, fileName, gameProcessed: 0, gameCount: 0);
@@ -1288,7 +1295,7 @@ namespace Chess.Pgn.Parser
                     errTxt = "Error loading file";
                 }
             }
-            if (errTxt == null && m_isJobCancelled)
+            if (errTxt == null && IsJobCancelled)
             {
                 errTxt = "Cancelled by the user";
             }
@@ -1299,12 +1306,15 @@ namespace Chess.Pgn.Parser
         /// <summary>
         /// Call to cancel the parsing job
         /// </summary>
-        public static void CancelParsingJob() => m_isJobCancelled = true;
+        public static void CancelParsingJob()
+        {
+            IsJobCancelled = true;
+        }
 
         /// <summary>
         /// true if job has been cancelled
         /// </summary>
-        public static bool IsJobCancelled => m_isJobCancelled;
+        public static bool IsJobCancelled { get; private set; }
 
         /// <summary>
         /// Apply a SAN move to the board

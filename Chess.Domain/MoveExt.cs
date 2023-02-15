@@ -310,7 +310,10 @@ namespace Chess.Domain
         /// <returns>
         /// Human form position
         /// </returns>
-        public string GetHumanPos() => Move.GetHumanPos();
+        public string GetHumanPos()
+        {
+            return Move.GetHumanPos();
+        }
 
         /// <summary>
         /// Convert the move to a string
@@ -318,6 +321,9 @@ namespace Chess.Domain
         /// <returns>
         /// Human position
         /// </returns>
-        public override string ToString() => Move.GetHumanPos();
+        public override string ToString()
+        {
+            return Move.GetHumanPos();
+        }
     }
 }

@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Chess.Domain.Enums;
 using System.Globalization;
-using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Serialization;
 using System.Xml;
-using Chess.Domain.Enums;
+using System.Xml.Serialization;
 
 namespace Chess.Domain
 {
@@ -16,18 +11,14 @@ namespace Chess.Domain
     /// </summary>
     public class MovePosStack : IXmlSerializable
     {
-        /// <summary>List of move position</summary>
-        private readonly List<MoveExt> m_movePosList;
-        /// <summary>Position of the current move in the list</summary>
-        private int m_posInList;
 
         /// <summary>
         /// Class constructor
         /// </summary>
         public MovePosStack()
         {
-            m_movePosList = new List<MoveExt>(512);
-            m_posInList = -1;
+            List = new List<MoveExt>(512);
+            PositionInList = -1;
         }
 
         /// <summary>
@@ -35,8 +26,8 @@ namespace Chess.Domain
         /// </summary>
         private MovePosStack(MovePosStack movePosList)
         {
-            m_movePosList = new List<MoveExt>(movePosList.m_movePosList);
-            m_posInList = movePosList.m_posInList;
+            List = new List<MoveExt>(movePosList.List);
+            PositionInList = movePosList.PositionInList;
         }
 
         /// <summary>
@@ -45,7 +36,10 @@ namespace Chess.Domain
         /// <returns>
         /// Move list
         /// </returns>
-        public MovePosStack Clone() => new(this);
+        public MovePosStack Clone()
+        {
+            return new(this);
+        }
 
         /// <summary>
         /// Save to the specified binary writer
@@ -53,9 +47,9 @@ namespace Chess.Domain
         /// <param name="writer"> Binary writer</param>
         public void SaveToWriter(System.IO.BinaryWriter writer)
         {
-            writer.Write(m_movePosList.Count);
-            writer.Write(m_posInList);
-            foreach (MoveExt move in m_movePosList)
+            writer.Write(List.Count);
+            writer.Write(PositionInList);
+            foreach (MoveExt move in List)
             {
                 writer.Write((byte)move.Move.OriginalPiece);
                 writer.Write(move.Move.StartPos);
@@ -73,16 +67,16 @@ namespace Chess.Domain
             int moveCount;
             Move move;
 
-            m_movePosList.Clear();
+            List.Clear();
             moveCount = reader.ReadInt32();
-            m_posInList = reader.ReadInt32();
+            PositionInList = reader.ReadInt32();
             for (int i = 0; i < moveCount; i++)
             {
                 move.OriginalPiece = (PieceType)reader.ReadByte();
                 move.StartPos = reader.ReadByte();
                 move.EndPos = reader.ReadByte();
                 move.Type = (MoveType)reader.ReadByte();
-                m_movePosList.Add(new MoveExt(move));
+                List.Add(new MoveExt(move));
             }
         }
 
@@ -92,7 +86,10 @@ namespace Chess.Domain
         /// <returns>
         /// null
         /// </returns>
-        public System.Xml.Schema.XmlSchema? GetSchema() => null;
+        public System.Xml.Schema.XmlSchema? GetSchema()
+        {
+            return null;
+        }
 
         /// <summary>
         /// Deserialize from XML
@@ -103,7 +100,7 @@ namespace Chess.Domain
             Move move;
             bool isEmpty;
 
-            m_movePosList.Clear();
+            List.Clear();
             if (reader.MoveToContent() != XmlNodeType.Element || reader.LocalName != "MoveList")
             {
                 throw new SerializationException("Unknown format");
@@ -111,10 +108,10 @@ namespace Chess.Domain
             else
             {
                 isEmpty = reader.IsEmptyElement;
-                m_posInList = int.Parse(reader.GetAttribute("PositionInList") ?? "-1");
+                PositionInList = int.Parse(reader.GetAttribute("PositionInList") ?? "-1");
                 if (isEmpty)
                 {
-                    reader.Read();
+                    _ = reader.Read();
                 }
                 else
                 {
@@ -129,7 +126,7 @@ namespace Chess.Domain
                                 EndPos = (byte)int.Parse(reader.GetAttribute("EndingPosition") ?? "0", CultureInfo.InvariantCulture),
                                 Type = (MoveType)Enum.Parse(typeof(MoveType), reader.GetAttribute("MoveType") ?? "0")
                             };
-                            m_movePosList.Add(new MoveExt(move));
+                            List.Add(new MoveExt(move));
                             reader.ReadStartElement("Move");
                         }
                     }
@@ -145,8 +142,8 @@ namespace Chess.Domain
         public void WriteXml(XmlWriter writer)
         {
             writer.WriteStartElement("MoveList");
-            writer.WriteAttributeString("PositionInList", m_posInList.ToString());
-            foreach (MoveExt move in m_movePosList)
+            writer.WriteAttributeString("PositionInList", PositionInList.ToString());
+            foreach (MoveExt move in List)
             {
                 writer.WriteStartElement("Move");
                 writer.WriteAttributeString("OriginalPiece", ((SerPieceType)move.Move.OriginalPiece).ToString());
@@ -161,17 +158,17 @@ namespace Chess.Domain
         /// <summary>
         /// Count
         /// </summary>
-        public int Count => m_movePosList.Count;
+        public int Count => List.Count;
 
         /// <summary>
         /// Indexer
         /// </summary>
-        public MoveExt this[int index] => m_movePosList[index];
+        public MoveExt this[int index] => List[index];
 
         /// <summary>
         /// Get the list of moves
         /// </summary>
-        public List<MoveExt> List => m_movePosList;
+        public List<MoveExt> List { get; }
 
         /// <summary>
         /// Add a move to the stack. All redo move are discarded
@@ -183,24 +180,24 @@ namespace Chess.Domain
             int pos;
 
             count = Count;
-            pos = m_posInList + 1;
+            pos = PositionInList + 1;
             while (count != pos)
             {
-                m_movePosList.RemoveAt(--count);
+                List.RemoveAt(--count);
             }
-            m_movePosList.Add(move);
-            m_posInList = pos;
+            List.Add(move);
+            PositionInList = pos;
         }
 
         /// <summary>
         /// Current move (last done move)
         /// </summary>
-        public MoveExt CurrentMove => this[m_posInList];
+        public MoveExt CurrentMove => this[PositionInList];
 
         /// <summary>
         /// Next move in the redo list
         /// </summary>
-        public MoveExt NextMove => this[m_posInList + 1];
+        public MoveExt NextMove => this[PositionInList + 1];
 
         /// <summary>
         /// Move to next move
@@ -210,9 +207,9 @@ namespace Chess.Domain
             int maxPos;
 
             maxPos = Count - 1;
-            if (m_posInList < maxPos)
+            if (PositionInList < maxPos)
             {
-                m_posInList++;
+                PositionInList++;
             }
         }
 
@@ -221,24 +218,24 @@ namespace Chess.Domain
         /// </summary>
         public void MoveToPrevious()
         {
-            if (m_posInList > -1)
+            if (PositionInList > -1)
             {
-                m_posInList--;
+                PositionInList--;
             }
         }
 
         /// <summary>
         /// Current move index
         /// </summary>
-        public int PositionInList => m_posInList;
+        public int PositionInList { get; private set; }
 
         /// <summary>
         /// Removes all move in the list
         /// </summary>
         public void Clear()
         {
-            m_movePosList.Clear();
-            m_posInList = -1;
+            List.Clear();
+            PositionInList = -1;
         }
     } // Class MovePosStack
 } // Namespace

@@ -1,9 +1,4 @@
 ﻿using Chess.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Chess.Domain
 {
@@ -224,7 +219,7 @@ namespace Chess.Domain
                         m_whiteElo = -1;
                     }
                 }
-                return (m_whiteElo);
+                return m_whiteElo;
             }
         }
 
@@ -243,7 +238,7 @@ namespace Chess.Domain
                         m_blackElo = -1;
                     }
                 }
-                return (m_blackElo);
+                return m_blackElo;
             }
         }
 
@@ -276,16 +271,11 @@ namespace Chess.Domain
                 if (Attrs != null && (m_attrRead & AttrRead.WhiteType) == 0)
                 {
                     m_attrRead |= AttrRead.WhiteType;
-                    if (Attrs.TryGetValue("WhiteType", out string? value))
-                    {
-                        m_whitePlayerType = string.Compare(value, "Program", ignoreCase: true) == 0 ? PgnPlayerType.Program : PgnPlayerType.Human;
-                    }
-                    else
-                    {
-                        m_whitePlayerType = PgnPlayerType.Human;
-                    }
+                    m_whitePlayerType = Attrs.TryGetValue("WhiteType", out string? value)
+                        ? string.Equals(value, "Program", StringComparison.OrdinalIgnoreCase) ? PgnPlayerType.Program : PgnPlayerType.Human
+                        : PgnPlayerType.Human;
                 }
-                return (m_whitePlayerType);
+                return m_whitePlayerType;
             }
         }
 
@@ -299,16 +289,11 @@ namespace Chess.Domain
                 if (Attrs != null && (m_attrRead & AttrRead.BlackType) == 0)
                 {
                     m_attrRead |= AttrRead.BlackType;
-                    if (Attrs.TryGetValue("BlackType", out string? value))
-                    {
-                        m_blackPlayerType = string.Compare(value, "Program", ignoreCase: true) == 0 ? PgnPlayerType.Program : PgnPlayerType.Human;
-                    }
-                    else
-                    {
-                        m_blackPlayerType = PgnPlayerType.Human;
-                    }
+                    m_blackPlayerType = Attrs.TryGetValue("BlackType", out string? value)
+                        ? string.Equals(value, "Program", StringComparison.OrdinalIgnoreCase) ? PgnPlayerType.Program : PgnPlayerType.Human
+                        : PgnPlayerType.Human;
                 }
-                return (m_blackPlayerType);
+                return m_blackPlayerType;
             }
         }
 
